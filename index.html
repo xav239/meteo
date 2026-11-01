@@ -122,7 +122,11 @@ svg.chart .val { font-size: 9px; fill: var(--muted); }
 
 .foot { color: var(--on-bg-muted, var(--muted)); font-size: 12px; text-align: center; margin-top: 8px; }
 .foot a { color: inherit; }
-main > .legend { color: var(--on-bg-muted, var(--muted)); }
+.page > .legend { color: var(--on-bg-muted, var(--muted)); }
+.pager { display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none;
+  overscroll-behavior-x: contain; align-items: flex-start; transition: height .25s ease; }
+.pager::-webkit-scrollbar { display: none; }
+.page { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
 .loading, .error { text-align: center; padding: 40px 0; color: var(--on-bg-muted, var(--muted)); }
 </style>
 </head>
@@ -488,12 +492,46 @@ function render() {
   const today = localIso(new Date());
   const tomorrow = localIso(new Date(Date.now() + 86400000));
   const main = document.getElementById("main");
-  main.innerHTML = tab === "today" ? renderDay(today, "Aujourd'hui")
-    : tab === "tomorrow" ? renderDay(tomorrow, "Demain")
-    : renderTen();
+  // Les 3 pages côte à côte : on passe de l'une à l'autre en glissant le doigt
+  main.innerHTML = `<div class="pager" id="pager">
+    <div class="page">${renderDay(today, "Aujourd'hui")}</div>
+    <div class="page">${renderDay(tomorrow, "Demain")}</div>
+    <div class="page">${renderTen()}</div>
+  </div>`;
+  const pager = document.getElementById("pager");
+  pager.scrollLeft = TABS.indexOf(tab) * pager.clientWidth;
+  pager.addEventListener("scroll", onPagerScroll, { passive: true });
+  fitPagerHeight();
   document.getElementById("foot").innerHTML =
     `Mis à jour à ${data.fetched.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · Modèles Météo-France (AROME/ARPEGE) et ECMWF via <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>`;
 }
+
+const TABS = ["today", "tomorrow", "ten"];
+function setActiveTab(t) {
+  tab = t;
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  fitPagerHeight();
+}
+// Le cadre prend la hauteur de la page affichée (sinon la plus longue laisse un vide sous les autres)
+function fitPagerHeight() {
+  const pager = document.getElementById("pager");
+  if (pager) pager.style.height = pager.children[TABS.indexOf(tab)].offsetHeight + "px";
+}
+function onPagerScroll(e) {
+  const p = e.currentTarget;
+  const t = TABS[Math.round(p.scrollLeft / p.clientWidth)];
+  if (t && t !== tab) setActiveTab(t);
+}
+function goToTab(t) {
+  const pager = document.getElementById("pager");
+  if (!pager) { setActiveTab(t); return; }
+  setActiveTab(t);
+  pager.scrollTo({ left: TABS.indexOf(t) * pager.clientWidth, behavior: "smooth" });
+}
+addEventListener("resize", () => {
+  const pager = document.getElementById("pager");
+  if (pager) { pager.scrollLeft = TABS.indexOf(tab) * pager.clientWidth; fitPagerHeight(); }
+});
 
 async function load() {
   document.getElementById("main").innerHTML = `<div class="loading">Chargement…</div>`;
@@ -537,7 +575,7 @@ document.getElementById("q").oninput = e => {
     });
   }, 300);
 };
-document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => goToTab(b.dataset.tab));
 
 load();
 
