@@ -31,7 +31,6 @@
   --warn: #d9480f;
   --cell-empty: #eef1f4;
   --sun-ink: #e89400;
-  --temp: #d62828;
   --night: #3b5b92;
   --cloud: #cfd5dc;
   --prob: #7b4fd6;
@@ -95,9 +94,7 @@ button.icon {
 .chart-h span { color: var(--muted); font-size: 13px; text-align: right; }
 svg.chart { width: 100%; height: auto; display: block; border-radius: 6px; overflow: visible; }
 svg.chart .ax { font-size: 9px; fill: var(--muted); }
-svg.chart .val { font-size: 9px; fill: var(--muted); }
-svg.chart .tlab { font-size: 11px; font-weight: 700; fill: var(--temp); paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
-.key { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 4px; flex-wrap: wrap; }
+svg.chart .val { font-size: 9px; fill: var(--muted); }.key { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 4px; flex-wrap: wrap; }
 .key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
 .key i.ln { height: 3px; vertical-align: 3px; border-radius: 2px; }
 .arr { display: inline-block; }
@@ -389,18 +386,11 @@ function sunChart(hs, isToday) {
   };
   hs.forEach(h => { if (h.isDay) run.push(h); else flush(); });
   flush();
-  // Courbe de température (échelle propre à la journée, marge haute/basse pour les étiquettes)
+  // Courbe de température (échelle propre à la journée), même trait que les rafales
   const temps = hs.map(h => h.temp);
-  const tMin = Math.min(...temps), tMax = Math.max(...temps), span = Math.max(4, tMax - tMin);
-  const ty = t => 12 + (1 - (t - tMin) / span) * (H - 24);
-  const tPts = hs.map(h => [cx(h.hour), ty(h.temp)]);
-  const lbl = (t, above) => {
-    const x = Math.max(12, Math.min(CW - 12, cx(hs[temps.indexOf(t)].hour)));
-    return `<text x="${x}" y="${ty(t) + (above ? -4 : 11)}" class="tlab" text-anchor="middle">${Math.round(t)}°</text>`;
-  };
-  body += `<path d="${smooth(tPts)}" fill="none" stroke="#fff" stroke-width="4" stroke-opacity=".8"/>
-    <path d="${smooth(tPts)}" fill="none" stroke="var(--temp)" stroke-width="2"/>
-    ${lbl(tMax, true)}${lbl(tMin, false)}`;
+  const tMin = Math.min(...temps), span = Math.max(4, Math.max(...temps) - tMin);
+  const ty = t => 8 + (1 - (t - tMin) / span) * (H - 16);
+  body += `<path d="${smooth(hs.map(h => [cx(h.hour), ty(h.temp)]))}" fill="none" stroke="var(--gust)" stroke-width="1.5"/>`;
   return chartSvg(H, body, isToday, true);
 }
 
@@ -464,7 +454,7 @@ function renderDay(dateIso, label) {
     ${alerts}
     <div class="chart-h"><b>${icon("sun")} Soleil</b><span>${fmtH(sunTot)} de soleil${daily ? ` · ${daily.sunrise.slice(11)}–${daily.sunset.slice(11)}` : ""}</span></div>
     ${sunChart(all, isToday)}
-    <div class="key"><span><i style="background:var(--sun)"></i>soleil</span><span><i style="background:var(--cloud)"></i>nuages</span><span><i style="background:var(--night)"></i>nuit</span><span><i class="ln" style="background:var(--temp)"></i>température</span></div>
+    <div class="key"><span><i style="background:var(--sun)"></i>soleil</span><span><i style="background:var(--cloud)"></i>nuages</span><span><i style="background:var(--night)"></i>nuit</span><span><i class="ln" style="background:var(--gust)"></i>température</span></div>
 
     <div class="chart-h"><b>${icon("drop")} Pluie</b><span>${rainTot < 0.1 ? "0" : rainTot.toFixed(1).replace(".", ",")} mm · risque max ${probMax} %</span></div>
     ${rainChart(all, isToday)}
